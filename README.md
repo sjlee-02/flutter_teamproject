@@ -1,4 +1,4 @@
-# flutter_teamproject
+# 영화/드라마 평점 및 리뷰 앱
 
 Flutter 버전: 3.35.3
 Dart 버전: 3.9.2
