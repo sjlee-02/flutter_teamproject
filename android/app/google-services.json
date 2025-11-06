@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "875416852307",
+    "project_id": "movie-drama-log-app",
+    "storage_bucket": "movie-drama-log-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:875416852307:android:a016c578d00d4798c3f3a6",
+        "android_client_info": {
+          "package_name": "com.example.flutter_teamproject"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBEoKUciNm8QDpW_RsuiHwzACsrBYj_UGs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

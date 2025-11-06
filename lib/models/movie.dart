@@ -1,4 +1,5 @@
 // lib/models/movie.dart
+//JSON 데이터를 Dart 객체로 안전하게 변환하는 모델 클래스
 
 class Movie {
   final int id;

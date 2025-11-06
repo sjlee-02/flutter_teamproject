@@ -1,4 +1,5 @@
 // lib/main.dart
+//통신 상태를 처리하며 영화 포스터 목록을 화면에 표시하는 메인 화면
 
 import 'package:flutter/material.dart';
 import 'services/api_service.dart';
@@ -18,69 +19,139 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: '시네마 로그',
       theme: ThemeData(primarySwatch: Colors.blueGrey),
-      home: const PopularMoviesScreen(),
+      home: const SearchMoviesScreen(),
     );
   }
 }
 
-class PopularMoviesScreen extends StatefulWidget {
-  const PopularMoviesScreen({super.key});
+class SearchMoviesScreen extends StatefulWidget {
+  const SearchMoviesScreen({super.key});
 
   @override
-  State<PopularMoviesScreen> createState() => _PopularMoviesScreenState();
+  State<SearchMoviesScreen> createState() => _SearchMoviesScreenState();
 }
 
-class _PopularMoviesScreenState extends State<PopularMoviesScreen> {
-  // 1. FutureBuilder에 사용할 데이터를 가져오는 Future 변수 선언
-  late Future<List<Movie>> _popularMovies;
+class _SearchMoviesScreenState extends State<SearchMoviesScreen> {
+  //  현재 화면에 표시할 데이터를 관리하는 Future 변수
+  late Future<List<Movie>> _movieData;
+  //  검색어 입력을 받을 TextEditingController
+  final TextEditingController _searchController = TextEditingController();
+  //  현재 검색어를 저장하는 변수 (빈 문자열이면 인기 목록)
+  String _currentQuery = '';
 
   @override
   void initState() {
     super.initState();
-    // 2. 화면이 로드될 때 API 호출 시작
-    _popularMovies = ApiService().fetchPopularMovies();
+    // 초기에는 인기 영화 목록을 가져옵니다.
+    _movieData = ApiService().fetchPopularMovies();
+  }
+
+  //  검색 로직을 실행하는 함수
+  void _performSearch(String query) {
+    // 공백 제거 후 검색어 확인
+    final trimmedQuery = query.trim();
+
+    if (trimmedQuery.isNotEmpty) {
+      // 검색어가 있으면 searchMovies 호출
+      setState(() {
+        _currentQuery = trimmedQuery;
+        _movieData = ApiService().searchMovies(trimmedQuery);
+      });
+    } else {
+      // 검색어가 비어있으면 다시 인기 목록을 보여줍니다.
+      setState(() {
+        _currentQuery = '';
+        _movieData = ApiService().fetchPopularMovies();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('인기 영화 목록 (1주차 목표)')),
-      // 3. FutureBuilder를 사용하여 비동기 데이터 처리
-      body: FutureBuilder<List<Movie>>(
-        future: _popularMovies,
-        builder: (context, snapshot) {
-          // 로딩 중일 때
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          // 에러 발생 시
-          else if (snapshot.hasError) {
-            return Center(child: Text('에러 발생: ${snapshot.error}'));
-          }
-          // 데이터가 비어 있을 때 (API 호출 실패 또는 결과 없음)
-          else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('불러올 영화 데이터가 없습니다.'));
-          }
-          // 데이터 로드 성공 시
-          else {
-            final List<Movie> movies = snapshot.data!;
-            // 4. 데이터를 GridView로 표시 (포스터 기반 리스트)
-            return GridView.builder(
-              padding: const EdgeInsets.all(10),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2, // 한 줄에 2개의 아이템
-                childAspectRatio: 0.7, // 아이템 비율 (세로로 길게)
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
+      appBar: AppBar(
+        title: Text(
+          _currentQuery.isEmpty ? '인기 영화 목록' : '검색 결과: "$_currentQuery"',
+        ),
+      ),
+      body: Column(
+        children: [
+          //  검색 필드 UI 추가 (사용자 입력)
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: '영화/드라마 제목 검색 ...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    // 검색 필드 초기화 및 인기 목록 복원
+                    _searchController.clear();
+                    _performSearch('');
+                  },
+                ),
+                border: const OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(25.0)),
+                ),
               ),
-              itemCount: movies.length,
-              itemBuilder: (context, index) {
-                final Movie movie = movies[index];
-                return MoviePosterItem(movie: movie);
+              onSubmitted: _performSearch, //  엔터키 입력 시 검색 실행
+            ),
+          ),
+          //  검색 결과를 표시할 영역 (확장)
+          Expanded(
+            child: FutureBuilder<List<Movie>>(
+              future: _movieData,
+              builder: (context, snapshot) {
+                // 로딩 중일 때
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                // 에러 발생 시
+                else if (snapshot.hasError) {
+                  return Center(child: Text('에러 발생: ${snapshot.error}'));
+                }
+                // 데이터가 비어 있을 때
+                else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Center(
+                    child: Text(
+                      _currentQuery.isEmpty
+                          ? '불러올 영화 데이터가 없습니다.'
+                          : '검색 결과가 없습니다. 다시 시도해 보세요.',
+                    ),
+                  );
+                }
+                // 데이터 로드 성공 시
+                else {
+                  final List<Movie> movies = snapshot.data!;
+                  return GridView.builder(
+                    padding: const EdgeInsets.all(10),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.7,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                        ),
+                    itemCount: movies.length,
+                    itemBuilder: (context, index) {
+                      final Movie movie = movies[index];
+                      // MoviePosterItem 위젯을 사용하여 각 아이템 표시
+                      return MoviePosterItem(movie: movie);
+                    },
+                  );
+                }
               },
-            );
-          }
-        },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -102,7 +173,6 @@ class MoviePosterItem extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 5. CachedNetworkImage를 사용하여 포스터 이미지 표시
         Expanded(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8.0),
@@ -117,7 +187,6 @@ class MoviePosterItem extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 5),
-        // 6. 영화 제목과 평점 표시
         Text(
           movie.title,
           maxLines: 1,

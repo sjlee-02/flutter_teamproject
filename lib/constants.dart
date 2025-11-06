@@ -1,4 +1,5 @@
 // lib/constants.dart
+//API 인증 키와 서버 주소를 저장
 
 //  발급 받은 API 키
 const String TMDB_API_KEY = "855e5e919d6f902aca52487fd4a091cb";
