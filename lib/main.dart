@@ -1,4 +1,10 @@
+// lib/main.dart
+
 import 'package:flutter/material.dart';
+import 'services/api_service.dart';
+import 'models/movie.dart';
+import 'constants.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 void main() {
   runApp(const MyApp());
@@ -7,116 +13,122 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      title: '시네마 로그',
+      theme: ThemeData(primarySwatch: Colors.blueGrey),
+      home: const PopularMoviesScreen(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class PopularMoviesScreen extends StatefulWidget {
+  const PopularMoviesScreen({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<PopularMoviesScreen> createState() => _PopularMoviesScreenState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _PopularMoviesScreenState extends State<PopularMoviesScreen> {
+  // 1. FutureBuilder에 사용할 데이터를 가져오는 Future 변수 선언
+  late Future<List<Movie>> _popularMovies;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  @override
+  void initState() {
+    super.initState();
+    // 2. 화면이 로드될 때 API 호출 시작
+    _popularMovies = ApiService().fetchPopularMovies();
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+      appBar: AppBar(title: const Text('인기 영화 목록 (1주차 목표)')),
+      // 3. FutureBuilder를 사용하여 비동기 데이터 처리
+      body: FutureBuilder<List<Movie>>(
+        future: _popularMovies,
+        builder: (context, snapshot) {
+          // 로딩 중일 때
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          // 에러 발생 시
+          else if (snapshot.hasError) {
+            return Center(child: Text('에러 발생: ${snapshot.error}'));
+          }
+          // 데이터가 비어 있을 때 (API 호출 실패 또는 결과 없음)
+          else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text('불러올 영화 데이터가 없습니다.'));
+          }
+          // 데이터 로드 성공 시
+          else {
+            final List<Movie> movies = snapshot.data!;
+            // 4. 데이터를 GridView로 표시 (포스터 기반 리스트)
+            return GridView.builder(
+              padding: const EdgeInsets.all(10),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2, // 한 줄에 2개의 아이템
+                childAspectRatio: 0.7, // 아이템 비율 (세로로 길게)
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+              ),
+              itemCount: movies.length,
+              itemBuilder: (context, index) {
+                final Movie movie = movies[index];
+                return MoviePosterItem(movie: movie);
+              },
+            );
+          }
+        },
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+    );
+  }
+}
+
+// 영화 포스터를 표시하는 커스텀 위젯
+class MoviePosterItem extends StatelessWidget {
+  final Movie movie;
+
+  const MoviePosterItem({super.key, required this.movie});
+
+  // 포스터 이미지 URL을 완성하는 함수
+  String getPosterUrl(String path) {
+    return '$TMDB_IMAGE_BASE_URL$path';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // 5. CachedNetworkImage를 사용하여 포스터 이미지 표시
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8.0),
+            child: CachedNetworkImage(
+              imageUrl: getPosterUrl(movie.posterPath),
+              fit: BoxFit.cover,
+              placeholder: (context, url) =>
+                  Container(color: Colors.grey[300]), // 로딩 중
+              errorWidget: (context, url, error) =>
+                  const Icon(Icons.error_outline), // 에러 시
             ),
-          ],
+          ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+        const SizedBox(height: 5),
+        // 6. 영화 제목과 평점 표시
+        Text(
+          movie.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+        Text(
+          '평점: ${movie.voteAverage.toStringAsFixed(1)}',
+          style: TextStyle(fontSize: 12, color: Colors.amber[800]),
+        ),
+      ],
     );
   }
 }
