@@ -13,10 +13,11 @@ import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'screens/auth_screen.dart';
 
-// main() 함수를 비동기로 변경하고 Firebase 초기화 코드를 추가합니다.
+// main() 함수를 비동기로 변경하고 Firebase 초기화 코드를 추가.
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // options: 키워드 제거
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(const MyApp());
@@ -93,15 +94,25 @@ class _SearchMoviesScreenState extends State<SearchMoviesScreen>
     super.dispose();
   }
 
+  //  탭별 검색 로직: 현재 탭에 맞는 API만 호출
   void _performSearch(String query) {
     final trimmedQuery = query.trim();
 
     if (trimmedQuery.isNotEmpty) {
       setState(() {
         _currentQuery = trimmedQuery;
-        _movieData = ApiService().searchMulti(trimmedQuery);
+
+        //  핵심: 탭 인덱스에 따라 검색 함수 분기
+        if (_tabController.index == 0) {
+          // 영화 탭 (인덱스 0): 영화 전용 검색
+          _movieData = ApiService().searchMovies(trimmedQuery);
+        } else {
+          // 드라마 탭 (인덱스 1): 드라마 전용 검색
+          _movieData = ApiService().searchTvShows(trimmedQuery);
+        }
       });
     } else {
+      // 검색 해제 시: 현재 탭의 인기 목록으로 돌아감
       setState(() {
         _currentQuery = '';
         if (_tabController.index == 0) {
@@ -112,6 +123,7 @@ class _SearchMoviesScreenState extends State<SearchMoviesScreen>
       });
     }
   }
+  // -------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -220,11 +232,10 @@ class MoviePosterItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    //  [클릭 이벤트 추가] GestureDetector 위젯으로 감싸서 클릭 이벤트 처리
+    // 클릭 이벤트 추가: GestureDetector 위젯으로 감싸서 클릭 이벤트 처리
     return GestureDetector(
       onTap: () {
         // 상세 화면으로 이동 (Movie 객체를 인수로 전달)
-        // 🚨 주의: MovieDetailScreen 파일을 미리 생성해야 합니다.
         Navigator.of(context).push(
           MaterialPageRoute(builder: (ctx) => MovieDetailScreen(movie: movie)),
         );

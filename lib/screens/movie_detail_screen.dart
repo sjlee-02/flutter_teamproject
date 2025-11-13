@@ -1,10 +1,11 @@
-// lib/screens/movie_detail_screen.dart (리뷰 작성 폼 연결 완료)
+// lib/screens/movie_detail_screen.dart (리뷰 작성 폼 및 리뷰 목록 연결 완료)
 
 import 'package:flutter/material.dart';
 import '../models/movie.dart';
 import '../constants.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../widgets/review_form.dart';
+import '../widgets/review_form.dart'; // ⭐️ 2주차: 리뷰 폼 임포트
+import '../widgets/review_list.dart'; // ⭐️ 3주차: 리뷰 목록 임포트
 
 class MovieDetailScreen extends StatelessWidget {
   final Movie movie;
@@ -62,17 +63,15 @@ class MovieDetailScreen extends StatelessWidget {
             Text(movie.overview, style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 30),
 
-            //  리뷰 작성 버튼 (로직 추가)
+            // 4. 리뷰 작성 버튼 (2주차 기능)
             Center(
               child: ElevatedButton.icon(
                 onPressed: () {
                   showModalBottomSheet(
                     context: context,
-                    isScrollControlled: true, // 키보드 때문에 화면 올라오는 것을 허용
-                    builder: (ctx) => ReviewForm(
-                      movieId: movie.id, // 영화 ID 전달
-                      movieTitle: movie.title, // 영화 제목 전달
-                    ),
+                    isScrollControlled: true,
+                    builder: (ctx) =>
+                        ReviewForm(movieId: movie.id, movieTitle: movie.title),
                   );
                 },
                 icon: const Icon(Icons.rate_review),
@@ -87,14 +86,16 @@ class MovieDetailScreen extends StatelessWidget {
               ),
             ),
 
-            // TODO: 다음 3주차에서 리뷰 목록이 여기에 표시될 예정
+            // ⭐️ 5. 3주차 목표: 리뷰 목록 표시 ⭐️
             const SizedBox(height: 30),
             const Text(
               '사용자 리뷰',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
-            const Center(child: Text('여기에 리뷰 목록이 실시간으로 표시됩니다.')),
+
+            // ReviewList 위젯을 삽입하고 movieId를 전달합니다.
+            ReviewList(movieId: movie.id),
           ],
         ),
       ),

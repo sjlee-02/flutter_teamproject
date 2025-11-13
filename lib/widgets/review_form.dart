@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-//  FlutterRatingBar 임포트는 그대로 유지합니다. (나중에 주석 해제 시 사용)
+//  FlutterRatingBar 임포트는 그대로 유지. (나중에 주석 해제 시 사용)
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 
 class ReviewForm extends StatefulWidget {
@@ -22,14 +22,14 @@ class ReviewForm extends StatefulWidget {
 
 class _ReviewFormState extends State<ReviewForm> {
   final _reviewController = TextEditingController();
-  //  별점은 임시로 5점으로 고정합니다. (오류 방지를 위해 0이 아니어야 함)
+  //  별점은 임시로 5점으로 고정. (오류 방지를 위해 0이 아니어야 함)
   double _currentRating = 5.0;
   bool _isLoading = false;
 
   //  Firestore 저장 핵심 로직
   void _submitReview() async {
     final reviewText = _reviewController.text.trim();
-    // 유효성 검사에서 별점 검사 로직은 잠시 제거합니다.
+    // 유효성 검사에서 별점 검사 로직은 잠시 제거
     if (reviewText.isEmpty) {
       ScaffoldMessenger.of(
         context,
@@ -48,14 +48,14 @@ class _ReviewFormState extends State<ReviewForm> {
         return;
       }
 
-      // 2. Firestore 'reviews' 컬렉션에 데이터 저장
+      //  Firestore 'reviews' 컬렉션에 데이터 저장
       await FirebaseFirestore.instance.collection('reviews').add({
         'movieId': widget.movieId,
         'movieTitle': widget.movieTitle,
         'userId': user.uid,
         'userEmail': user.email,
         'rating': _currentRating,
-        'reviewText': reviewText,
+        'reviewText': _reviewController.text,
         'createdAt': Timestamp.now(),
       });
 
@@ -102,7 +102,7 @@ class _ReviewFormState extends State<ReviewForm> {
           ),
           const SizedBox(height: 20),
 
-          //  [수정] 별점 입력 (Rating Bar) - 오류 회피를 위해 주석 처리
+          //   별점 입력 (Rating Bar) - 오류 회피를 위해 주석 처리
           const Text('별점 입력 기능위치할 예정.', style: TextStyle(color: Colors.red)),
           /* FlutterRatingBar.builder(
             initialRating: _currentRating,
@@ -120,7 +120,7 @@ class _ReviewFormState extends State<ReviewForm> {
           */
           const SizedBox(height: 20),
 
-          // 5. 리뷰 텍스트 입력
+          //  리뷰 텍스트 입력
           TextField(
             controller: _reviewController,
             decoration: const InputDecoration(
@@ -131,7 +131,7 @@ class _ReviewFormState extends State<ReviewForm> {
           ),
           const SizedBox(height: 20),
 
-          // 6. 버튼
+          // 버튼
           _isLoading
               ? const CircularProgressIndicator()
               : ElevatedButton(
