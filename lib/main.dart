@@ -1,12 +1,24 @@
-// lib/main.dart (최종 1주차 목표: 탭 및 통합 검색 완료 버전)
+// lib/main.dart (최종 1주차 + 2주차 인증 기반 완료 버전)
 
 import 'package:flutter/material.dart';
 import 'services/api_service.dart';
 import 'models/movie.dart';
 import 'constants.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'screens/movie_detail_screen.dart';
 
-void main() {
+// Firebase 및 인증 관련 임포트
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'screens/auth_screen.dart';
+
+// main() 함수를 비동기로 변경하고 Firebase 초기화 코드를 추가합니다.
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
   runApp(const MyApp());
 }
 
@@ -18,7 +30,21 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: '시네마 로그',
       theme: ThemeData(primarySwatch: Colors.blueGrey),
-      home: const SearchMoviesScreen(),
+      // home: Firebase 인증 상태에 따라 화면을 전환하는 StreamBuilder
+      home: StreamBuilder(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (snapshot.hasData) {
+            return const SearchMoviesScreen();
+          }
+          return const AuthScreen();
+        },
+      ),
     );
   }
 }
@@ -30,11 +56,9 @@ class SearchMoviesScreen extends StatefulWidget {
   State<SearchMoviesScreen> createState() => _SearchMoviesScreenState();
 }
 
-//  TickerProviderStateMixin 추가: TabController 사용을 위해 필수
 class _SearchMoviesScreenState extends State<SearchMoviesScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  // _movieData는 검색 결과를 담는 데 사용됩니다. 인기 목록은 TabBarView 내부에서 직접 호출합니다.
   late Future<List<Movie>> _movieData;
   final TextEditingController _searchController = TextEditingController();
   String _currentQuery = '';
@@ -42,21 +66,14 @@ class _SearchMoviesScreenState extends State<SearchMoviesScreen>
   @override
   void initState() {
     super.initState();
-    // TabController 초기화 (길이 2: 영화, 드라마)
     _tabController = TabController(length: 2, vsync: this);
-
-    // 초기에는 영화 목록을 로드하도록 설정 (TabController 초기 인덱스 0)
     _movieData = ApiService().fetchPopularMovies();
-
-    //  탭 변경 시 데이터를 새로고침하는 리스너 추가
     _tabController.addListener(_handleTabChange);
   }
 
   void _handleTabChange() {
     if (!_tabController.indexIsChanging) {
-      // 탭 변경이 완료되었을 때만 실행
       if (_currentQuery.isEmpty) {
-        // 검색 중이 아닐 때만 탭 변경에 따른 데이터 로드
         setState(() {
           if (_tabController.index == 0) {
             _movieData = ApiService().fetchPopularMovies();
@@ -76,21 +93,17 @@ class _SearchMoviesScreenState extends State<SearchMoviesScreen>
     super.dispose();
   }
 
-  // 검색 로직 실행 함수 (Enter를 누르거나 검색 버튼을 눌렀을 때 호출됨)
   void _performSearch(String query) {
     final trimmedQuery = query.trim();
 
     if (trimmedQuery.isNotEmpty) {
-      //  검색어가 있으면 통합 검색 호출
       setState(() {
         _currentQuery = trimmedQuery;
         _movieData = ApiService().searchMulti(trimmedQuery);
       });
     } else {
-      //  검색 해제 시
       setState(() {
         _currentQuery = '';
-        // 현재 활성화된 탭의 인기 목록으로 돌아감
         if (_tabController.index == 0) {
           _movieData = ApiService().fetchPopularMovies();
         } else {
@@ -102,20 +115,11 @@ class _SearchMoviesScreenState extends State<SearchMoviesScreen>
 
   @override
   Widget build(BuildContext context) {
-    // 탭바와 목록을 표시할 Future를 결정합니다.
-    final Future<List<Movie>> currentListFuture = _currentQuery.isNotEmpty
-        ? _movieData // 검색 중일 때
-        : _tabController.index == 0
-        ? ApiService()
-              .fetchPopularMovies() // 영화 탭일 때
-        : ApiService().fetchPopularTvShows(); // 드라마 탭일 때
-
     return Scaffold(
       appBar: AppBar(
         title: Text(
           _currentQuery.isEmpty ? '영화/드라마 목록' : '검색 결과: "$_currentQuery"',
         ),
-        //  검색 중이 아닐 때만 탭바를 보여줍니다.
         bottom: _currentQuery.isEmpty
             ? TabBar(
                 controller: _tabController,
@@ -125,10 +129,17 @@ class _SearchMoviesScreenState extends State<SearchMoviesScreen>
                 ],
               )
             : null,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.exit_to_app),
+            onPressed: () {
+              FirebaseAuth.instance.signOut(); // 로그아웃 로직
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
-          //  검색 필드 UI
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: TextField(
@@ -140,7 +151,7 @@ class _SearchMoviesScreenState extends State<SearchMoviesScreen>
                   icon: const Icon(Icons.clear),
                   onPressed: () {
                     _searchController.clear();
-                    _performSearch(''); // 검색 해제
+                    _performSearch('');
                   },
                 ),
                 border: const OutlineInputBorder(
@@ -150,30 +161,22 @@ class _SearchMoviesScreenState extends State<SearchMoviesScreen>
               onSubmitted: _performSearch,
             ),
           ),
-
-          //  검색 결과 또는 탭뷰 영역
           Expanded(
             child: _currentQuery.isEmpty
                 ? TabBarView(
-                    //  검색 중이 아닐 때: TabBarView를 통해 각 탭의 내용을 보여줌
                     controller: _tabController,
                     children: [
-                      _buildContentList(
-                        ApiService().fetchPopularMovies(),
-                      ), // 영화 탭
-                      _buildContentList(
-                        ApiService().fetchPopularTvShows(),
-                      ), // 드라마 탭
+                      _buildContentList(ApiService().fetchPopularMovies()),
+                      _buildContentList(ApiService().fetchPopularTvShows()),
                     ],
                   )
-                : _buildContentList(_movieData), // 검색 중일 때는 통합 검색 결과 표시
+                : _buildContentList(_movieData),
           ),
         ],
       ),
     );
   }
 
-  // ⭐️ 데이터 로딩 및 목록 표시를 담당하는 별도 위젯 함수
   Widget _buildContentList(Future<List<Movie>> future) {
     return FutureBuilder<List<Movie>>(
       future: future,
@@ -183,7 +186,7 @@ class _SearchMoviesScreenState extends State<SearchMoviesScreen>
         } else if (snapshot.hasError) {
           return Center(child: Text('에러 발생: ${snapshot.error}'));
         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Center(child: Text('불러올 콘텐츠가 없습니다.'));
+          return const Center(child: Text('불러올 콘텐츠가 없습니다.'));
         } else {
           final List<Movie> movies = snapshot.data!;
           return GridView.builder(
@@ -217,33 +220,44 @@ class MoviePosterItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8.0),
-            child: CachedNetworkImage(
-              imageUrl: getPosterUrl(movie.posterPath),
-              fit: BoxFit.cover,
-              placeholder: (context, url) => Container(color: Colors.grey[300]),
-              errorWidget: (context, url, error) =>
-                  const Icon(Icons.error_outline),
+    //  [클릭 이벤트 추가] GestureDetector 위젯으로 감싸서 클릭 이벤트 처리
+    return GestureDetector(
+      onTap: () {
+        // 상세 화면으로 이동 (Movie 객체를 인수로 전달)
+        // 🚨 주의: MovieDetailScreen 파일을 미리 생성해야 합니다.
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (ctx) => MovieDetailScreen(movie: movie)),
+        );
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8.0),
+              child: CachedNetworkImage(
+                imageUrl: getPosterUrl(movie.posterPath),
+                fit: BoxFit.cover,
+                placeholder: (context, url) =>
+                    Container(color: Colors.grey[300]),
+                errorWidget: (context, url, error) =>
+                    const Icon(Icons.error_outline),
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          movie.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-        ),
-        Text(
-          '평점: ${movie.voteAverage.toStringAsFixed(1)}',
-          style: TextStyle(fontSize: 12, color: Colors.amber[800]),
-        ),
-      ],
+          const SizedBox(height: 5),
+          Text(
+            movie.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+          Text(
+            '평점: ${movie.voteAverage.toStringAsFixed(1)}',
+            style: TextStyle(fontSize: 12, color: Colors.amber[800]),
+          ),
+        ],
+      ),
     );
   }
 }

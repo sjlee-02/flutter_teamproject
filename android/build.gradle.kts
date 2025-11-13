@@ -1,3 +1,14 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // ⭐️ [필수 수정] Kotlin DSL 문법으로 Firebase 플러그인 경로 추가 ⭐️
+        classpath("com.google.gms:google-services:4.4.0") 
+    }
+}
+
 allprojects {
     repositories {
         google()
