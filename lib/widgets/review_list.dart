@@ -5,7 +5,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/review_service.dart';
 
-// ⭐️ [수정 1] StatelessWidget을 StatefulWidget으로 변경 ⭐️
 class ReviewList extends StatefulWidget {
   final int movieId;
 
@@ -16,7 +15,6 @@ class ReviewList extends StatefulWidget {
 }
 
 class _ReviewListState extends State<ReviewList> {
-  // ⭐️ [수정 2] 삭제 함수를 State 클래스 내부로 이동 ⭐️
   void _deleteReview(String reviewDocId, BuildContext context) async {
     try {
       await FirebaseFirestore.instance
@@ -24,7 +22,6 @@ class _ReviewListState extends State<ReviewList> {
           .doc(reviewDocId)
           .delete();
 
-      // ⭐️ [추가] context 사용 전 mounted 체크 (경고 방지)
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -42,11 +39,10 @@ class _ReviewListState extends State<ReviewList> {
 
   @override
   Widget build(BuildContext context) {
-    // ⭐️ [수정 3] currentUserId는 build 메소드 내에서 선언 ⭐️
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
     return StreamBuilder<QuerySnapshot>(
-      stream: getReviewsStream(widget.movieId), // ⭐️ widget.movieId로 변경
+      stream: getReviewsStream(widget.movieId), //
       builder: (context, snapshot) {
         // 로딩, 에러, 데이터 없음 상태 처리
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -69,7 +65,7 @@ class _ReviewListState extends State<ReviewList> {
             final reviewDoc = reviews[index];
             final reviewData = reviewDoc.data() as Map<String, dynamic>;
 
-            // ⭐️ 삭제 버튼 표시 여부 결정 ⭐️
+            // 삭제 버튼 표시 여부 결정
             final isMyReview = reviewData['userId'] == currentUserId;
 
             return Card(
@@ -92,7 +88,7 @@ class _ReviewListState extends State<ReviewList> {
                           ),
                         ),
 
-                        // ⭐️ 내가 쓴 리뷰일 경우에만 삭제 버튼 표시 ⭐️
+                        // 내가 쓴 리뷰일 경우에만 삭제 버튼 표시
                         if (isMyReview)
                           IconButton(
                             icon: Icon(
@@ -100,7 +96,7 @@ class _ReviewListState extends State<ReviewList> {
                               size: 18,
                               color: Colors.red[400],
                             ),
-                            // ⭐️ 삭제 함수 호출 시 문서 ID와 context 전달 ⭐️
+                            // 삭제 함수 호출 시 문서 ID와 context 전달
                             onPressed: () =>
                                 _deleteReview(reviewDoc.id, context),
                           ),

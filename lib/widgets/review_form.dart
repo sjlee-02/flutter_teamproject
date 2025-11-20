@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_rating_bar/flutter_rating_bar.dart'; // ⭐️ FlutterRatingBar 임포트 ⭐️
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 
 class ReviewForm extends StatefulWidget {
   final int movieId;
@@ -21,15 +21,14 @@ class ReviewForm extends StatefulWidget {
 
 class _ReviewFormState extends State<ReviewForm> {
   final _reviewController = TextEditingController();
-  // ⭐️ [수정] 초기 별점은 0점으로 설정하여, 사용자가 반드시 선택하게 유도합니다. ⭐️
+  //  초기 별점은 0점으로 설정하여, 사용자가 반드시 선택하게 유도
   double _currentRating = 0;
   bool _isLoading = false;
 
-  // ⭐️ 1. Firestore 저장 핵심 로직 (별점 유효성 검사 추가) ⭐️
+  //  Firestore 저장 핵심 로직
   void _submitReview() async {
     final reviewText = _reviewController.text.trim();
 
-    // ⭐️ [수정] 별점 검사 로직 재추가 ⭐️
     if (reviewText.isEmpty || _currentRating == 0) {
       ScaffoldMessenger.of(
         context,
@@ -54,7 +53,7 @@ class _ReviewFormState extends State<ReviewForm> {
         'movieTitle': widget.movieTitle,
         'userId': user.uid,
         'userEmail': user.email,
-        'rating': _currentRating, // ⭐️ 실제 사용자가 선택한 별점 값이 저장됩니다.
+        'rating': _currentRating,
         'reviewText': _reviewController.text,
         'createdAt': Timestamp.now(),
       });
@@ -102,7 +101,7 @@ class _ReviewFormState extends State<ReviewForm> {
           ),
           const SizedBox(height: 20),
 
-          // ⭐️ [활성화] 별점 입력 (Rating Bar) 주석 해제 및 활성화 ⭐️
+          // 별점 입력
           RatingBar.builder(
             initialRating: _currentRating,
             minRating: 0,
@@ -113,7 +112,7 @@ class _ReviewFormState extends State<ReviewForm> {
             itemBuilder: (context, _) =>
                 const Icon(Icons.star, color: Colors.amber),
             onRatingUpdate: (rating) {
-              // ⭐️ 별점 변경 시 _currentRating 값 업데이트 (setState 포함) ⭐️
+              //  별점 변경 시 _currentRating 값 업데이트 (setState 포함)
               setState(() {
                 _currentRating = rating;
               });
