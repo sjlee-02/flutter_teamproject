@@ -1,10 +1,9 @@
-// lib/widgets/review_form.dart
+// lib/widgets/review_form.dart (최종 별점 입력 활성화)
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-//  FlutterRatingBar 임포트는 그대로 유지. (나중에 주석 해제 시 사용)
-import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart'; // ⭐️ FlutterRatingBar 임포트 ⭐️
 
 class ReviewForm extends StatefulWidget {
   final int movieId;
@@ -22,18 +21,19 @@ class ReviewForm extends StatefulWidget {
 
 class _ReviewFormState extends State<ReviewForm> {
   final _reviewController = TextEditingController();
-  //  별점은 임시로 5점으로 고정. (오류 방지를 위해 0이 아니어야 함)
-  double _currentRating = 5.0;
+  // ⭐️ [수정] 초기 별점은 0점으로 설정하여, 사용자가 반드시 선택하게 유도합니다. ⭐️
+  double _currentRating = 0;
   bool _isLoading = false;
 
-  //  Firestore 저장 핵심 로직
+  // ⭐️ 1. Firestore 저장 핵심 로직 (별점 유효성 검사 추가) ⭐️
   void _submitReview() async {
     final reviewText = _reviewController.text.trim();
-    // 유효성 검사에서 별점 검사 로직은 잠시 제거
-    if (reviewText.isEmpty) {
+
+    // ⭐️ [수정] 별점 검사 로직 재추가 ⭐️
+    if (reviewText.isEmpty || _currentRating == 0) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('리뷰 내용을 입력해주세요.')));
+      ).showSnackBar(const SnackBar(content: Text('별점과 리뷰 내용을 입력해주세요.')));
       return;
     }
 
@@ -48,13 +48,13 @@ class _ReviewFormState extends State<ReviewForm> {
         return;
       }
 
-      //  Firestore 'reviews' 컬렉션에 데이터 저장
+      // Firestore 'reviews' 컬렉션에 데이터 저장
       await FirebaseFirestore.instance.collection('reviews').add({
         'movieId': widget.movieId,
         'movieTitle': widget.movieTitle,
         'userId': user.uid,
         'userEmail': user.email,
-        'rating': _currentRating,
+        'rating': _currentRating, // ⭐️ 실제 사용자가 선택한 별점 값이 저장됩니다.
         'reviewText': _reviewController.text,
         'createdAt': Timestamp.now(),
       });
@@ -102,11 +102,10 @@ class _ReviewFormState extends State<ReviewForm> {
           ),
           const SizedBox(height: 20),
 
-          //   별점 입력 (Rating Bar) - 오류 회피를 위해 주석 처리
-          const Text('별점 입력 기능위치할 예정.', style: TextStyle(color: Colors.red)),
-          /* FlutterRatingBar.builder(
+          // ⭐️ [활성화] 별점 입력 (Rating Bar) 주석 해제 및 활성화 ⭐️
+          RatingBar.builder(
             initialRating: _currentRating,
-            minRating: 1,
+            minRating: 0,
             direction: Axis.horizontal,
             allowHalfRating: true,
             itemCount: 5,
@@ -114,17 +113,19 @@ class _ReviewFormState extends State<ReviewForm> {
             itemBuilder: (context, _) =>
                 const Icon(Icons.star, color: Colors.amber),
             onRatingUpdate: (rating) {
-              _currentRating = rating;
+              // ⭐️ 별점 변경 시 _currentRating 값 업데이트 (setState 포함) ⭐️
+              setState(() {
+                _currentRating = rating;
+              });
             },
           ),
-          */
           const SizedBox(height: 20),
 
-          //  리뷰 텍스트 입력
+          // 리뷰 텍스트 입력
           TextField(
             controller: _reviewController,
             decoration: const InputDecoration(
-              labelText: '리뷰를 작성해주세요.',
+              labelText: '솔직한 리뷰를 작성해주세요.',
               border: OutlineInputBorder(),
             ),
             maxLines: 5,
